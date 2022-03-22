@@ -1,5 +1,6 @@
 __kernel
-void performHeatEquation(__global float* sourceGrid, int n, __global float* outputGrid)
+// TODO: Check if this can be __constant or will need to be changed back to __global
+void performHeatEquation(__constant float* sourceGrid, int n, __global float* outputGrid)
 {
     int x = get_global_id(0);
     int y = get_global_id(1);
