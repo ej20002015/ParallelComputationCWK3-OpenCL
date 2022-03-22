@@ -4,9 +4,11 @@ void performHeatEquation(__global float* sourceGrid, int n, __global float* outp
     int x = get_global_id(0);
     int y = get_global_id(1);
 
-    bool edgeCell = x == 0 || y == 0 || x == n - 1 || y == n - 1;
+    bool edgeCell = (x == 0 || y == 0 || x == n - 1 || y == n - 1);
 
-    if (!edgeCell)
+    if (edgeCell)
+        outputGrid[y * n + x] = 0.0f;
+    else
     {
         float bottom = sourceGrid[(y + 1) * n + x];
         float top =    sourceGrid[(y - 1) * n + x];

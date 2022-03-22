@@ -60,8 +60,6 @@ int main( int argc, char **argv )
 	// Allocate memory for the grid on the GPU and apply the heat equation as per the instructions.
 	//
 
-    cl_int status;
-
     // Create space for data on the GPU and copy over the source grid
 
     cl_mem device_sourceGrid = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, N * N * sizeof(float), hostGrid, &status);
@@ -73,21 +71,28 @@ int main( int argc, char **argv )
 
     // Specify kernel arguments
 
-    status = clSetKernelArg(kernel, 0, sizeof(cl_mem), device_sourceGrid);
-    status = clSetKernelArg(kernel, 1, sizeof(int), N);
-    status = clSetKernelArg(kernel, 2, sizeof(cl_mem), device_outputGrid);
+    status = clSetKernelArg(kernel, 0, sizeof(cl_mem), &device_sourceGrid);
+    status = clSetKernelArg(kernel, 1, sizeof(int), &N);
+    status = clSetKernelArg(kernel, 2, sizeof(cl_mem), &device_outputGrid);
 
     // Set global and local work size, and then queue the kernel to be run
 
-    int globalWorkSize[2] = { N, N };
-    int localWorkSize[2] = { 8, 8 };
+    const size_t globalWorkSize[2] = { N, N };
+    // Let OpenCL decide on a suitable work group size. If a value
+    // is hard coded then it restricts the values of N that can be provided
+    const size_t* localWorkSize = NULL;
     
-    clEnqueueNDRangeKernel(queue, kernel, 2, 0, globalWorkSize, localWorkSize, 0, NULL, NULL);
+    status = clEnqueueNDRangeKernel(queue, kernel, 2, 0, globalWorkSize, localWorkSize, 0, NULL, NULL);
+    if (status != CL_SUCCESS)
+    {
+        printf("ERROR: Couldn't queue the kernel - error code = %d\n", status);
+        return EXIT_FAILURE;
+    }
 
     // Get the resulting grid back from the GPU
 
     status = clEnqueueReadBuffer(queue, device_outputGrid, CL_TRUE, 0, N * N * sizeof(float), hostGrid, 0, NULL, NULL);
-
+    
     //
     // Display the final result. This assumes that the iterated grid was copied back to the hostGrid array.
     //
