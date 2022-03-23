@@ -23,6 +23,12 @@
 // Do not alter these routines, as they will be replaced with different versions for assessment.
 #include "helper_cwk.h"
 
+unsigned long getDeviceMaximumConstantBufferSize(cl_device_id device)
+{
+    cl_ulong bufferSize;
+    clGetDeviceInfo(device, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, sizeof(bufferSize), &bufferSize, NULL);
+    return bufferSize;
+}
 
 //
 // Main.
@@ -62,12 +68,20 @@ int main( int argc, char **argv )
 
     // Create space for data on the GPU and copy over the source grid
 
-    cl_mem device_sourceGrid = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, N * N * sizeof(float), hostGrid, &status);
-    cl_mem device_outputGrid = clCreateBuffer(context, CL_MEM_WRITE_ONLY, N * N * sizeof(float), NULL, &status);
+    size_t sourceGridSize = N * N * sizeof(float);
+    size_t outputGridSize = N * N * sizeof(float);
+
+    cl_mem device_sourceGrid = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sourceGridSize, hostGrid, &status);
+    cl_mem device_outputGrid = clCreateBuffer(context, CL_MEM_WRITE_ONLY, outputGridSize, NULL, &status);
 
     // Compile kernel
+    // Kernel picked depends on the required memory to store the source grid and the
+    // size of the device's constant memory buffer
 
-    cl_kernel kernel = compileKernelFromFile("cwk3.cl", "performHeatEquation", context, device);
+    unsigned long constantBufferSize = getDeviceMaximumConstantBufferSize(device);
+    const char* kernelName = (sourceGridSize > constantBufferSize) ? "performHeatEquationGlobal" : "performHeatEquationConstant";
+
+    cl_kernel kernel = compileKernelFromFile("cwk3.cl", kernelName, context, device);
 
     // Specify kernel arguments
 
@@ -91,7 +105,7 @@ int main( int argc, char **argv )
 
     // Get the resulting grid back from the GPU
 
-    status = clEnqueueReadBuffer(queue, device_outputGrid, CL_TRUE, 0, N * N * sizeof(float), hostGrid, 0, NULL, NULL);
+    status = clEnqueueReadBuffer(queue, device_outputGrid, CL_TRUE, 0, outputGridSize, hostGrid, 0, NULL, NULL);
     
     //
     // Display the final result. This assumes that the iterated grid was copied back to the hostGrid array.
